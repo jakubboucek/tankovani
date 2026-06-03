@@ -168,17 +168,25 @@
 
   .hint { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
 
-  /* Inline validation error shown under a field. */
+  /* Inline validation error shown under a field. Hidden until the field is
+     invalid (driven by the Constraint Validation API via :user-invalid, with
+     a .submitted fallback for browsers without :user-invalid support). */
   .field-error {
     color: var(--danger);
     font-size: 14px;
     font-weight: 600;
     margin: 6px 0 0;
+    display: none;
+  }
+  input:user-invalid ~ .field-error,
+  form.submitted input:invalid ~ .field-error {
+    display: block;
   }
 
-  /* Invalid field stays highlighted (even while focused) until edited. */
-  input.invalid,
-  input.invalid:focus {
+  /* Highlight an invalid field (even while focused), only after interaction. */
+  input:user-invalid,
+  input:user-invalid:focus,
+  form.submitted input:invalid {
     border-color: var(--danger);
     box-shadow: 0 0 0 3px rgba(201, 42, 42, .18);
   }
@@ -209,19 +217,20 @@
            inputmode=decimal still shows a numeric keypad on phones. -->
       <input type="text" id="liters" name="liters"
              inputmode="decimal" autocomplete="off" enterkeyhint="next"
+             pattern="[0-9]+([.,][0-9]+)?"
              placeholder="např. 45,30" aria-describedby="liters-error" required>
-      <p class="field-error" id="liters-error" hidden></p>
+      <p class="field-error" id="liters-error"></p>
     </div>
     <div class="field">
       <label for="km">Stav tachometru (km)</label>
       <input type="number" id="km" name="km" step="1" min="0"
              inputmode="numeric" placeholder="např. 123456" aria-describedby="km-error" required>
-      <p class="field-error" id="km-error" hidden></p>
+      <p class="field-error" id="km-error"></p>
     </div>
     <div class="field">
       <label for="date">Datum</label>
       <input type="date" id="date" name="date" aria-describedby="date-error" required>
-      <p class="field-error" id="date-error" hidden></p>
+      <p class="field-error" id="date-error"></p>
     </div>
     <button type="submit" class="btn-primary">Uložit tankování</button>
   </form>
@@ -406,66 +415,66 @@ const litersError = document.getElementById("liters-error");
 const kmError = document.getElementById("km-error");
 const dateError = document.getElementById("date-error");
 
-function showFieldError(input, errEl, msg) {
-  input.classList.add("invalid");
-  input.setAttribute("aria-invalid", "true");
-  errEl.textContent = msg;
-  errEl.hidden = false;
+// Parse a litres/km value allowing a decimal comma (Czech keyboards use comma).
+function parseNumber(value) {
+  return parseFloat(String(value).replace(",", "."));
 }
 
-function clearFieldError(input, errEl) {
-  input.classList.remove("invalid");
-  input.removeAttribute("aria-invalid");
-  errEl.textContent = "";
-  errEl.hidden = true;
+// Drive validation through the Constraint Validation API: set a Czech message
+// via setCustomValidity() for the cases the platform can't express, then mirror
+// the platform's validationMessage into the inline <p>. CSS (:user-invalid)
+// handles the red border and showing/hiding the message.
+function refreshError(input, errEl) {
+  input.setCustomValidity("");
+
+  if (input.validity.valueMissing) {
+    input.setCustomValidity(
+      input === litersInput ? "Vyplň množství nafty." :
+      input === kmInput ? "Vyplň stav tachometru." :
+      "Vyplň datum."
+    );
+  } else if (input === litersInput) {
+    if (!(parseNumber(input.value) > 0)) {
+      input.setCustomValidity("Zadej množství jako číslo, např. 45,30.");
+    }
+  } else if (input === kmInput) {
+    const km = parseNumber(input.value);
+    if (!(km >= 0) || isNaN(km)) {
+      input.setCustomValidity("Zadej stav tachometru jako číslo, např. 123456.");
+    }
+  }
+
+  errEl.textContent = input.validationMessage; // empty string when valid
 }
 
-// The highlight + message stay until the user edits that field.
-litersInput.addEventListener("input", () => clearFieldError(litersInput, litersError));
-kmInput.addEventListener("input", () => clearFieldError(kmInput, kmError));
-dateInput.addEventListener("input", () => clearFieldError(dateInput, dateError));
+const fields = [
+  [litersInput, litersError],
+  [kmInput, kmError],
+  [dateInput, dateError]
+];
+
+// Re-validate a field as the user edits it, so its message clears live.
+for (const [input, errEl] of fields) {
+  input.addEventListener("input", () => refreshError(input, errEl));
+}
 
 form.addEventListener("submit", (ev) => {
   ev.preventDefault();
 
-  // Accept both comma and dot as decimal separator (Czech keyboards use comma).
-  const liters = parseFloat(String(litersInput.value).replace(",", "."));
-  const km = parseFloat(String(kmInput.value).replace(",", "."));
-  const date = dateInput.value;
+  for (const [input, errEl] of fields) refreshError(input, errEl);
+  form.classList.add("submitted"); // enables the :invalid fallback styling
 
-  // Validate all fields, highlight every invalid one, focus the first.
-  let firstInvalid = null;
-
-  if (litersInput.value.trim() === "") {
-    showFieldError(litersInput, litersError, "Vyplň množství nafty.");
-    firstInvalid = firstInvalid || litersInput;
-  } else if (!(liters > 0)) {
-    showFieldError(litersInput, litersError, "Zadej množství jako číslo, např. 45,30.");
-    firstInvalid = firstInvalid || litersInput;
-  }
-
-  if (kmInput.value.trim() === "") {
-    showFieldError(kmInput, kmError, "Vyplň stav tachometru.");
-    firstInvalid = firstInvalid || kmInput;
-  } else if (!(km >= 0) || isNaN(km)) {
-    showFieldError(kmInput, kmError, "Zadej stav tachometru jako číslo, např. 123456.");
-    firstInvalid = firstInvalid || kmInput;
-  }
-
-  if (!date) {
-    showFieldError(dateInput, dateError, "Vyplň datum.");
-    firstInvalid = firstInvalid || dateInput;
-  }
-
-  if (firstInvalid) {
-    firstInvalid.focus();
+  if (!form.checkValidity()) {
+    const firstInvalid = form.querySelector(":invalid");
+    if (firstInvalid) firstInvalid.focus();
     return;
   }
 
-  addEntry(date, liters, km);
+  addEntry(dateInput.value, parseNumber(litersInput.value), parseNumber(kmInput.value));
 
   // Reset for the next entry; date goes back to today.
   form.reset();
+  form.classList.remove("submitted");
   dateInput.value = todayLocal();
   litersInput.focus();
 });

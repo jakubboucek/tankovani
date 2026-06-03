@@ -1,5 +1,9 @@
 # Spotřeba nafty
 
+> **Ukázková aplikace.** Tato appka byla naprogramovaná pomocí [Claude Code](https://www.anthropic.com/claude-code)
+> v rámci školení VibeCodingu — kurz **„Vibecoding: tvořte rychlostí myšlenky"**.
+> Školitel: **David Grugl** ([@dg](https://github.com/dg)), web: <https://www.umeligence.cz/kurzy>.
+
 Jednoduchá appka do mobilu na zapisování tankování auta: **datum, množství nafty (litry)
 a stav tachometru (km)**. Data se ukládají jen ve tvém telefonu (v prohlížeči), appka
 funguje i bez internetu.

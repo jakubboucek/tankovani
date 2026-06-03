@@ -168,26 +168,36 @@
 
   .hint { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
 
-  /* Lightweight toast for feedback */
+  /* Feedback banner – top of screen so it stays visible above the keyboard. */
   #toast {
     position: fixed;
     left: 50%;
-    bottom: calc(20px + env(safe-area-inset-bottom));
-    transform: translateX(-50%) translateY(20px);
-    background: #212529;
+    top: calc(12px + env(safe-area-inset-top));
+    transform: translateX(-50%) translateY(-150%);
+    width: max-content;
+    max-width: calc(100% - 24px);
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
     color: #fff;
-    padding: 12px 18px;
-    border-radius: 999px;
-    font-size: 15px;
+    background: #2b8a3e;          /* success: green */
+    box-shadow: 0 6px 20px rgba(0,0,0,.25);
     opacity: 0;
     pointer-events: none;
-    transition: opacity .2s, transform .2s;
-    max-width: 90%;
+    transition: opacity .2s, transform .25s;
     text-align: center;
+    z-index: 1000;
   }
   #toast.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+    pointer-events: auto;        /* tap to dismiss */
+    cursor: pointer;
+  }
+  #toast.error {
+    background: #c92a2a;          /* error: red */
+    font-size: 17px;
   }
 </style>
 </head>
@@ -407,9 +417,9 @@ form.addEventListener("submit", (ev) => {
   const liters = parseFloat(String(litersInput.value).replace(",", "."));
   const km = parseFloat(String(kmInput.value).replace(",", "."));
 
-  if (!date) { toast("Vyplň datum"); return; }
-  if (!(liters > 0)) { toast("Vyplň množství nafty"); return; }
-  if (!(km >= 0) || isNaN(km)) { toast("Vyplň stav tachometru"); return; }
+  if (!date) { toast("Vyplň datum", "error"); return; }
+  if (!(liters > 0)) { toast("Vyplň množství nafty", "error"); return; }
+  if (!(km >= 0) || isNaN(km)) { toast("Vyplň stav tachometru", "error"); return; }
 
   addEntry(date, liters, km);
 
@@ -434,7 +444,7 @@ function toCsv(entries) {
 
 function exportCsv() {
   const entries = loadEntries();
-  if (entries.length === 0) { toast("Není co exportovat"); return; }
+  if (entries.length === 0) { toast("Není co exportovat", "error"); return; }
 
   const csv = "﻿" + toCsv(entries); // BOM so Excel detects UTF-8
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -454,7 +464,7 @@ function exportCsv() {
 function importCsv(text) {
   const clean = text.replace(/^﻿/, "").trim();
   const lines = clean.split(/\r?\n/).filter((l) => l.trim() !== "");
-  if (lines.length === 0) { toast("Soubor je prázdný"); return; }
+  if (lines.length === 0) { toast("Soubor je prázdný", "error"); return; }
 
   // Drop the header row if present.
   let start = 0;
@@ -487,7 +497,11 @@ function importCsv(text) {
 
   saveEntries(Object.values(byId));
   render();
-  toast(imported > 0 ? ("Načteno záznamů: " + imported) : "Nenašel jsem žádné záznamy");
+  if (imported > 0) {
+    toast("Načteno záznamů: " + imported);
+  } else {
+    toast("V souboru nejsou žádné záznamy", "error");
+  }
 }
 
 document.getElementById("export-btn").addEventListener("click", exportCsv);
@@ -499,7 +513,7 @@ importFile.addEventListener("change", () => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => importCsv(String(reader.result));
-  reader.onerror = () => toast("Soubor se nepodařilo načíst");
+  reader.onerror = () => toast("Soubor se nepodařilo načíst", "error");
   reader.readAsText(file, "utf-8");
   importFile.value = ""; // allow re-importing the same file
 });
@@ -509,12 +523,26 @@ importFile.addEventListener("change", () => {
 // ---------------------------------------------------------------------------
 let toastTimer = null;
 const toastEl = document.getElementById("toast");
-function toast(msg) {
-  toastEl.textContent = msg;
+
+function hideToast() {
+  toastEl.classList.remove("show");
+  if (toastTimer) clearTimeout(toastTimer);
+}
+
+// type: "success" (default, short green) or "error" (prominent red, stays longer)
+function toast(msg, type) {
+  type = type || "success";
+  const isError = type === "error";
+  toastEl.textContent = (isError ? "⚠️ " : "✓ ") + msg;
+  toastEl.classList.toggle("error", isError);
+  toastEl.setAttribute("aria-live", isError ? "assertive" : "polite");
   toastEl.classList.add("show");
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+  toastTimer = setTimeout(hideToast, isError ? 5000 : 2200);
 }
+
+// Tap the banner to dismiss it early.
+toastEl.addEventListener("click", hideToast);
 
 // ---------------------------------------------------------------------------
 // Init

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b7285">
+<title>Spotřeba nafty</title>
+
+<!-- PWA: installable, runs offline once cached -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tankování">
+
+<style>
+  :root {
+    --bg: #f1f3f5;
+    --card: #ffffff;
+    --ink: #212529;
+    --muted: #868e96;
+    --brand: #0b7285;
+    --brand-dark: #095c6b;
+    --danger: #c92a2a;
+    --line: #dee2e6;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+
+  .app {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 16px 16px calc(32px + env(safe-area-inset-bottom));
+  }
+
+  header.app-header {
+    padding: 8px 0 16px;
+  }
+  header.app-header h1 {
+    margin: 0;
+    font-size: 24px;
+    color: var(--brand-dark);
+  }
+  header.app-header p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  input[type="date"],
+  input[type="number"],
+  input[type="text"] {
+    width: 100%;
+    padding: 14px;
+    font-size: 19px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(11,114,133,.15);
+  }
+
+  button {
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+  .btn-primary {
+    width: 100%;
+    background: var(--brand);
+    color: #fff;
+  }
+  .btn-primary:active { background: var(--brand-dark); }
+
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+
+  ul.entries { list-style: none; margin: 0; padding: 0; }
+  li.entry {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+  }
+  li.entry:first-child { border-top: none; }
+
+  .entry-main { flex: 1; min-width: 0; }
+  .entry-date { font-weight: 700; }
+  .entry-meta { color: var(--muted); font-size: 15px; }
+  .entry-cons {
+    font-size: 14px;
+    color: var(--brand-dark);
+    background: #e3f3f6;
+    border-radius: 999px;
+    padding: 2px 8px;
+    display: inline-block;
+    margin-top: 4px;
+  }
+
+  .btn-delete {
+    background: transparent;
+    color: var(--danger);
+    padding: 8px;
+    font-size: 15px;
+    flex: none;
+  }
+
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 24px 8px;
+  }
+
+  .backup-buttons {
+    display: flex;
+    gap: 10px;
+  }
+  .btn-secondary {
+    flex: 1;
+    background: #e9ecef;
+    color: var(--ink);
+  }
+  .btn-secondary:active { background: #dee2e6; }
+
+  .hint { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+
+  /* Lightweight toast for feedback */
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(20px);
+    background: #212529;
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-size: 15px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    max-width: 90%;
+    text-align: center;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="app-header">
+    <h1>Spotřeba nafty</h1>
+    <p>Zapiš každé tankování. Data zůstávají jen v tomto telefonu.</p>
+  </header>
+
+  <!-- Entry form -->
+  <form id="entry-form" class="card" novalidate>
+    <div class="field">
+      <label for="date">Datum</label>
+      <input type="date" id="date" name="date" required>
+    </div>
+    <div class="field">
+      <label for="liters">Množství nafty (litry)</label>
+      <!-- type=text (not number) so a decimal comma "45,30" is preserved;
+           inputmode=decimal still shows a numeric keypad on phones. -->
+      <input type="text" id="liters" name="liters"
+             inputmode="decimal" autocomplete="off" enterkeyhint="next"
+             placeholder="např. 45,30" required>
+    </div>
+    <div class="field">
+      <label for="km">Stav tachometru (km)</label>
+      <input type="number" id="km" name="km" step="1" min="0"
+             inputmode="numeric" placeholder="např. 123456" required>
+    </div>
+    <button type="submit" class="btn-primary">Uložit tankování</button>
+  </form>
+
+  <!-- Saved entries -->
+  <section class="card">
+    <h2 class="section-title">Zapsaná tankování</h2>
+    <ul id="entries" class="entries"></ul>
+    <div id="empty" class="empty" hidden>Zatím nic. Přidej první tankování výše.</div>
+  </section>
+
+  <!-- Backup -->
+  <section class="card">
+    <h2 class="section-title">Záloha dat</h2>
+    <div class="backup-buttons">
+      <button type="button" id="export-btn" class="btn-secondary">Exportovat</button>
+      <button type="button" id="import-btn" class="btn-secondary">Načíst zálohu</button>
+    </div>
+    <input type="file" id="import-file" accept=".csv,text/csv" hidden>
+    <p class="hint">
+      Data jsou uložená jen v tomto telefonu. Občas si je exportuj do souboru
+      (např. do iCloudu nebo si ho pošli e-mailem) – kdyby ses o telefon připravil.
+    </p>
+  </section>
+
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------------
+// Data layer: entries live in localStorage as a JSON array.
+// Each entry: { id, date: 'YYYY-MM-DD', liters: Number, km: Number, updatedAt }
+// id + updatedAt are kept so a future automatic sync can merge safely.
+// ---------------------------------------------------------------------------
+const STORAGE_KEY = "fuelEntries.v1";
+
+function loadEntries() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const data = raw ? JSON.parse(raw) : [];
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error("Cannot read entries", e);
+    return [];
+  }
+}
+
+function saveEntries(entries) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+function newId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "id-" + Date.now() + "-" + Math.floor(Math.random() * 1e9);
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+// Local date as YYYY-MM-DD (not UTC, so "today" matches the user's timezone).
+function todayLocal() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return d.getFullYear() + "-" + m + "-" + day;
+}
+
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
+const entriesEl = document.getElementById("entries");
+const emptyEl = document.getElementById("empty");
+
+// Format a YYYY-MM-DD string as a Czech date (e.g. 3. 6. 2026).
+function formatDate(iso) {
+  const parts = iso.split("-");
+  if (parts.length !== 3) return iso;
+  return Number(parts[2]) + ". " + Number(parts[1]) + ". " + parts[0];
+}
+
+function formatNumber(n, decimals) {
+  return n.toLocaleString("cs-CZ", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}
+
+// Sort newest first for display; for consumption we need previous-by-km.
+function render() {
+  const entries = loadEntries();
+
+  // Ascending by km to compute consumption between consecutive fills.
+  const byKm = entries.slice().sort((a, b) => a.km - b.km);
+  const consumptionById = {};
+  for (let i = 1; i < byKm.length; i++) {
+    const prev = byKm[i - 1];
+    const cur = byKm[i];
+    const dist = cur.km - prev.km;
+    if (dist > 0 && cur.liters > 0) {
+      consumptionById[cur.id] = (cur.liters / dist) * 100;
+    }
+  }
+
+  // Newest first: by date desc, then km desc as a tie-breaker.
+  const sorted = entries.slice().sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return b.km - a.km;
+  });
+
+  entriesEl.innerHTML = "";
+  emptyEl.hidden = sorted.length > 0;
+
+  for (const e of sorted) {
+    const li = document.createElement("li");
+    li.className = "entry";
+
+    const main = document.createElement("div");
+    main.className = "entry-main";
+
+    const date = document.createElement("div");
+    date.className = "entry-date";
+    date.textContent = formatDate(e.date);
+    main.appendChild(date);
+
+    const meta = document.createElement("div");
+    meta.className = "entry-meta";
+    meta.textContent = formatNumber(e.liters, 2) + " l • " + formatNumber(e.km, 0) + " km";
+    main.appendChild(meta);
+
+    const cons = consumptionById[e.id];
+    if (cons != null && isFinite(cons)) {
+      const tag = document.createElement("div");
+      tag.className = "entry-cons";
+      tag.textContent = formatNumber(cons, 1) + " l/100 km";
+      main.appendChild(tag);
+    }
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "btn-delete";
+    del.textContent = "Smazat";
+    del.addEventListener("click", () => deleteEntry(e.id));
+
+    li.appendChild(main);
+    li.appendChild(del);
+    entriesEl.appendChild(li);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
+function addEntry(date, liters, km) {
+  const entries = loadEntries();
+  entries.push({
+    id: newId(),
+    date: date,
+    liters: liters,
+    km: km,
+    updatedAt: nowIso()
+  });
+  saveEntries(entries);
+  render();
+}
+
+function deleteEntry(id) {
+  if (!confirm("Opravdu smazat tento záznam?")) return;
+  const entries = loadEntries().filter((e) => e.id !== id);
+  saveEntries(entries);
+  render();
+  toast("Záznam smazán");
+}
+
+const form = document.getElementById("entry-form");
+const dateInput = document.getElementById("date");
+const litersInput = document.getElementById("liters");
+const kmInput = document.getElementById("km");
+
+form.addEventListener("submit", (ev) => {
+  ev.preventDefault();
+
+  const date = dateInput.value;
+  // Accept both comma and dot as decimal separator (Czech keyboards use comma).
+  const liters = parseFloat(String(litersInput.value).replace(",", "."));
+  const km = parseFloat(String(kmInput.value).replace(",", "."));
+
+  if (!date) { toast("Vyplň datum"); return; }
+  if (!(liters > 0)) { toast("Vyplň množství nafty"); return; }
+  if (!(km >= 0) || isNaN(km)) { toast("Vyplň stav tachometru"); return; }
+
+  addEntry(date, liters, km);
+
+  // Reset for the next entry; date goes back to today.
+  form.reset();
+  dateInput.value = todayLocal();
+  litersInput.focus();
+  toast("Tankování uloženo");
+});
+
+// ---------------------------------------------------------------------------
+// Backup: CSV export / import. Semicolon-separated so Czech Excel opens it in
+// columns. Columns: id;datum;litry;km;upraveno — faithful round-trip + merge.
+// ---------------------------------------------------------------------------
+function toCsv(entries) {
+  const header = "id;datum;litry;km;upraveno";
+  const rows = entries.map((e) =>
+    [e.id, e.date, e.liters, e.km, e.updatedAt || ""].join(";")
+  );
+  return [header].concat(rows).join("\r\n");
+}
+
+function exportCsv() {
+  const entries = loadEntries();
+  if (entries.length === 0) { toast("Není co exportovat"); return; }
+
+  const csv = "﻿" + toCsv(entries); // BOM so Excel detects UTF-8
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "spotreba-nafty-" + todayLocal() + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast("Záloha stažena");
+}
+
+// Parse a backup CSV and merge into existing data by id (upsert, keep newest).
+function importCsv(text) {
+  const clean = text.replace(/^﻿/, "").trim();
+  const lines = clean.split(/\r?\n/).filter((l) => l.trim() !== "");
+  if (lines.length === 0) { toast("Soubor je prázdný"); return; }
+
+  // Drop the header row if present.
+  let start = 0;
+  if (/datum/i.test(lines[0]) && /km/i.test(lines[0])) start = 1;
+
+  const byId = {};
+  for (const e of loadEntries()) byId[e.id] = e;
+
+  let imported = 0;
+  for (let i = start; i < lines.length; i++) {
+    const cols = lines[i].split(";");
+    if (cols.length < 4) continue;
+
+    const id = (cols[0] || "").trim() || newId();
+    const date = (cols[1] || "").trim();
+    const liters = parseFloat(String(cols[2]).replace(",", "."));
+    const km = parseFloat(String(cols[3]).replace(",", "."));
+    const updatedAt = (cols[4] || "").trim() || nowIso();
+
+    if (!date || isNaN(liters) || isNaN(km)) continue;
+
+    const incoming = { id, date, liters, km, updatedAt };
+    const existing = byId[id];
+    // Keep whichever was modified later (forward-compatible with sync).
+    if (!existing || (incoming.updatedAt > (existing.updatedAt || ""))) {
+      byId[id] = incoming;
+    }
+    imported++;
+  }
+
+  saveEntries(Object.values(byId));
+  render();
+  toast(imported > 0 ? ("Načteno záznamů: " + imported) : "Nenašel jsem žádné záznamy");
+}
+
+document.getElementById("export-btn").addEventListener("click", exportCsv);
+
+const importFile = document.getElementById("import-file");
+document.getElementById("import-btn").addEventListener("click", () => importFile.click());
+importFile.addEventListener("change", () => {
+  const file = importFile.files && importFile.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => importCsv(String(reader.result));
+  reader.onerror = () => toast("Soubor se nepodařilo načíst");
+  reader.readAsText(file, "utf-8");
+  importFile.value = ""; // allow re-importing the same file
+});
+
+// ---------------------------------------------------------------------------
+// Toast helper
+// ---------------------------------------------------------------------------
+let toastTimer = null;
+const toastEl = document.getElementById("toast");
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+}
+
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+dateInput.value = todayLocal();
+render();
+
+// Register the service worker so the app works offline after first load.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((e) =>
+      console.warn("Service worker registration failed", e)
+    );
+  });
+}
+</script>
+</body>
+</html>

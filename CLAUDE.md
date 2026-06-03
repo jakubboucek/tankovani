@@ -4,6 +4,10 @@
 > strategii service workeru nebo nasazení, uprav i příslušnou sekci zde ve stejné změně.
 > Zaznamenávej jen věci specifické pro TUTO appku — ne obecné konvence.
 
+> **Pracovní postup:** verzuj po každé ucelené úspěšné změně — jakmile je změna hotová a
+> ověřená, udělej `git commit` i `git push` do `main` (Pages se přebuildí samy). Slučuj do
+> jednoho commitu jen těsně související úpravy; nenech hotovou práci necommitnutou.
+
 ## Co to je
 
 **Čistě klientská offline PWA** pro zápis tankování auta. Žádný server, žádná databáze,

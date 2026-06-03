@@ -202,10 +202,6 @@
   <!-- Entry form -->
   <form id="entry-form" class="card" novalidate>
     <div class="field">
-      <label for="date">Datum</label>
-      <input type="date" id="date" name="date" required>
-    </div>
-    <div class="field">
       <label for="liters">Množství nafty (litry)</label>
       <!-- type=text (not number) so a decimal comma "45,30" is preserved;
            inputmode=decimal still shows a numeric keypad on phones. -->
@@ -217,6 +213,10 @@
       <label for="km">Stav tachometru (km)</label>
       <input type="number" id="km" name="km" step="1" min="0"
              inputmode="numeric" placeholder="např. 123456" required>
+    </div>
+    <div class="field">
+      <label for="date">Datum</label>
+      <input type="date" id="date" name="date" required>
     </div>
     <button type="submit" class="btn-primary">Uložit tankování</button>
   </form>
@@ -521,6 +521,9 @@ function toast(msg) {
 // ---------------------------------------------------------------------------
 dateInput.value = todayLocal();
 render();
+
+// Put the cursor straight into the litres field on open.
+litersInput.focus();
 
 // Register the service worker so the app works offline after first load.
 if ("serviceWorker" in navigator) {

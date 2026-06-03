@@ -85,27 +85,34 @@
     border-radius: 10px;
     background: #fff;
     color: var(--ink);
-    -webkit-appearance: none;
-    appearance: none;
   }
-  input:focus {
+  input:focus-visible {
     outline: none;
     border-color: var(--brand);
     box-shadow: 0 0 0 3px rgba(11,114,133,.15);
   }
+  button:focus-visible {
+    outline: 3px solid rgba(11,114,133,.45);
+    outline-offset: 2px;
+  }
 
-  button {
+  /* Shared button styling — also applies to a <label> used as a button.
+     Explicit line-height so a <button> (UA line-height:normal) and a <label>
+     (inherited 1.4) end up the same height side by side. */
+  button,
+  label.btn-secondary {
     font-size: 18px;
     font-weight: 600;
+    line-height: 1.2;
     border: none;
     border-radius: 10px;
-    padding: 14px 16px;
     cursor: pointer;
   }
   .btn-primary {
     width: 100%;
     background: var(--brand);
     color: #fff;
+    padding: 14px 16px;
   }
   .btn-primary:active { background: var(--brand-dark); }
 
@@ -163,6 +170,12 @@
     flex: 1;
     background: #e9ecef;
     color: var(--ink);
+    height: 52px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
   .btn-secondary:active { background: #dee2e6; }
 
@@ -247,7 +260,7 @@
     <h2 class="section-title">Záloha dat</h2>
     <div class="backup-buttons">
       <button type="button" id="export-btn" class="btn-secondary">Exportovat</button>
-      <button type="button" id="import-btn" class="btn-secondary">Načíst zálohu</button>
+      <label class="btn-secondary" for="import-file">Načíst zálohu</label>
     </div>
     <input type="file" id="import-file" accept=".csv,text/csv" hidden>
     <p class="backup-status" id="backup-status" role="status" aria-live="polite" hidden></p>
@@ -375,6 +388,9 @@ function render() {
     del.type = "button";
     del.className = "btn-delete";
     del.textContent = "Smazat";
+    // Distinct accessible name so screen readers can tell the buttons apart.
+    del.setAttribute("aria-label",
+      "Smazat tankování z " + formatDate(e.date) + " (" + formatNumber(e.km, 0) + " km)");
     del.addEventListener("click", () => deleteEntry(e.id));
 
     li.appendChild(main);
@@ -558,8 +574,8 @@ function importCsv(text) {
 
 document.getElementById("export-btn").addEventListener("click", exportCsv);
 
+// The "Načíst zálohu" <label for="import-file"> opens the file dialog natively.
 const importFile = document.getElementById("import-file");
-document.getElementById("import-btn").addEventListener("click", () => importFile.click());
 importFile.addEventListener("change", () => {
   const file = importFile.files && importFile.files[0];
   if (!file) return;

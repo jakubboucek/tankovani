@@ -13,7 +13,10 @@ funguje i bez internetu.
 
 ## Soubory
 
-| Soubor | K čemu je |
+Publikovaná appka je ve složce **`docs/`** (GitHub Pages servíruje jen ji). Soubory v kořeni
+(`README.md`, `CLAUDE.md`) jsou jen pro repozitář a na web se nedostanou.
+
+| Soubor (v `docs/`) | K čemu je |
 |--------|-----------|
 | `index.html` | Celá appka (formulář, seznam, záloha). |
 | `manifest.webmanifest` | Aby šla appka přidat na plochu jako ikona. |
@@ -28,7 +31,7 @@ funguje i bez internetu.
    - Na stránce repozitáře klikni **Add file → Upload files**, přetáhni sem všechny soubory
      a dej **Commit changes**.
 3. Zapni Pages: v repozitáři **Settings → Pages → Source: „Deploy from a branch"**,
-   vyber větev **`main`** a složku **`/ (root)`**, dej **Save**.
+   vyber větev **`main`** a složku **`/docs`**, dej **Save**.
 4. Po chvilce (1–2 minuty) bude appka dostupná na adrese:
    `https://TVOJE-JMENO.github.io/spotreba/`
 5. Tuhle adresu otevři **v telefonu v Safari** → tlačítko **Sdílet** → **Přidat na plochu**.
@@ -47,10 +50,10 @@ Udělej si export hned po prvních pár zápisech, ať máš jistotu, že záloh
 
 ## Vyzkoušení na počítači
 
-Service worker (offline režim) potřebuje běžet přes `http`, ne přímo ze souboru. Spusť ve
-složce jednoduchý server a otevři adresu v prohlížeči:
+Service worker (offline režim) potřebuje běžet přes `http`, ne přímo ze souboru. Spusť
+jednoduchý server nad složkou `docs/` a otevři adresu v prohlížeči:
 
 ```bash
-php -S localhost:8000
+php -S localhost:8000 -t docs
 # pak otevři http://localhost:8000/
 ```

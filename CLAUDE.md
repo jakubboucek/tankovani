@@ -14,10 +14,17 @@
 žádný build, žádný framework, žádné závislosti — jen statické soubory otevřené v prohlížeči.
 Majitel je **nevývojář** a chce jednoduché řešení s minimální údržbou.
 
-Soubory:
-- `index.html` — celá appka (HTML + CSS + JS v jednom souboru).
-- `manifest.webmanifest`, `sw.js`, `icon-*.png`, `apple-touch-icon.png` — PWA obal.
-- `README.md` — česky, pro koncového uživatele (jak nasadit a používat). Drž ho netechnický.
+Rozvržení repozitáře:
+- **`docs/`** — publikovaná appka (GitHub Pages servíruje **jen tuhle složku**):
+  - `index.html` — celá appka (HTML + CSS + JS v jednom souboru).
+  - `manifest.webmanifest`, `sw.js`, `icon-*.png`, `apple-touch-icon.png` — PWA obal.
+- **kořen** — jen repo-dokumentace, která se NEpublikuje na web:
+  - `README.md` — česky, pro koncového uživatele (jak nasadit a používat). Drž ho netechnický.
+  - `CLAUDE.md` — tento soubor.
+
+> Proč `docs/`: Pages je nastavené na `main /docs`, takže se na web dostane jen appka a
+> `README.md`/`CLAUDE.md` v kořeni zůstanou mimo web. Nové **publikované** soubory dávej do
+> `docs/`; repo-dokumentaci do kořene.
 
 ## Požadavky / rozhodnutí o produktu
 
@@ -61,13 +68,14 @@ Soubory:
   automaticky, když jsou online), **cache-first pro statické soubory**. Díky tomu se změny
   kódu v `index.html` projeví při dalším online otevření bez nutnosti měnit verzi.
 - Když změníš statické soubory (ikony/manifest), **zvedni `CACHE_VERSION`** v `sw.js`.
-- Service worker potřebuje http, ne `file://`. Lokálně testuj přes `php -S localhost:8000`
-  (PHP 8.4 je k dispozici). Při testování změn může SW servírovat starou cache — odregistruj
-  ho / vyčisti cache.
+- Service worker potřebuje http, ne `file://`. Lokálně testuj přes `php -S localhost:8000 -t docs`
+  (servíruj složku `docs/`; PHP 8.4 je k dispozici). Při testování změn může SW servírovat
+  starou cache — odregistruj ho / vyčisti cache.
 
 ## Nasazení
 
-- GitHub Pages z repozitáře **`jakubboucek/tankovani`**, větev `main`, kořen.
+- GitHub Pages z repozitáře **`jakubboucek/tankovani`**, větev `main`, složka **`/docs`**
+  (publikuje se jen appka; `README.md`/`CLAUDE.md` v kořeni zůstávají mimo web).
   Živá URL: **https://jakubboucek.github.io/tankovani/**
 - Nasazení = `git push origin main`; Pages se přebuildí cca za 1 min. Pak ověř živou URL.
 - (Starší repozitář `jakubboucek/Spotreba` z roku 2020 je jiný, nesouvisející projekt.)

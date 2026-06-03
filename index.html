@@ -217,7 +217,7 @@
            inputmode=decimal still shows a numeric keypad on phones. -->
       <input type="text" id="liters" name="liters"
              inputmode="decimal" autocomplete="off" enterkeyhint="next"
-             pattern="[0-9]+([.,][0-9]+)?"
+             pattern="[0-9]+([.,][0-9]+)?" autofocus
              placeholder="např. 45,30" aria-describedby="liters-error" required>
       <p class="field-error" id="liters-error"></p>
     </div>
@@ -594,9 +594,8 @@ function zaznamu(n) {
 // ---------------------------------------------------------------------------
 dateInput.value = todayLocal();
 render();
-
-// Put the cursor straight into the litres field on open.
-litersInput.focus();
+// The litres field gets initial focus via its `autofocus` attribute.
+// JS focus() is only used to return focus there after saving (see submit handler).
 
 // Register the service worker so the app works offline after first load.
 if ("serviceWorker" in navigator) {
